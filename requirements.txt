@@ -9,6 +9,5 @@ fastapi
 pymongo
 pydantic
 python-multipart
-gridfs
 python-dotenv
 openai
