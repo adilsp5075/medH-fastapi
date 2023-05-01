@@ -13,12 +13,14 @@ app.include_router(chatbot.router, prefix="/api",tags=["chatbot"])
 app.include_router(medical_data.router, prefix="/api", tags=["medical_data"])
 
 # Define the allowed origins for CORS
-origins = [
-    "http://localhost",
-    "http://localhost:8000",
-    "http://127.0.0.1",
-    "http://127.0.0.1:8000"
-]
+# origins = [
+#     "http://localhost",
+#     "http://localhost:8000",
+#     "http://127.0.0.1",
+#     "http://127.0.0.1:8000"
+# ]
+
+origins=["*"]
 
 # Add the CORS middleware to the app
 app.add_middleware(
