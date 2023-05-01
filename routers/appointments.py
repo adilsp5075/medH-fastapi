@@ -1,126 +1,133 @@
-# routers/appointments.py
-
-from fastapi import APIRouter,HTTPException,Depends
+from fastapi import APIRouter, HTTPException, Depends
 from pymongo import MongoClient
 from bson import json_util, ObjectId
 from database import get_database
 from pydantic import BaseModel
 import json
-import datetime
+from datetime import datetime
+from routers.doctors import get_current_doctor
+import uuid
+
+
+router = APIRouter()
 
 # Connect to MongoDB
 db = get_database()
-appointments_collection = db["appointments"]
-users_collection = db["users"] 
+users_collection = db["users"]
 doctors_collection = db["doctors"]
-
-router = APIRouter()
+appointments_collection = db["appointments"]
 
 class Appointment(BaseModel):
     user_id: str
     doctor_id: str
-    appointment_time: datetime.datetime
-    doctor_name: str
-    doctor_speciality: str
+    appointment_time: datetime
     notes: str
     status: str = "pending"
-    chat_room_id: str = None
+
+@router.post("/appointments")
+async def book_appointment(appointment: Appointment):
+    # Check if the user and doctor exist
+    user = users_collection.find_one({"_id": ObjectId(appointment.user_id)})
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    doctor = doctors_collection.find_one({"_id": ObjectId(appointment.doctor_id)})
+    if doctor is None:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+
+    # Check if the appointment time is available
+    existing_appointment = appointments_collection.find_one({
+        "doctor_id": ObjectId(appointment.doctor_id),
+        "appointment_time": appointment.appointment_time
+    })
+    if existing_appointment is not None:
+        raise HTTPException(status_code=400, detail="Appointment time not available")
+
+    # Book the appointment
+    appointment_dict = appointment.dict()
+    appointment_dict['doctor_id'] = ObjectId(appointment.doctor_id)
+    appointment_dict['user_id'] = ObjectId(appointment.user_id)
+    result = appointments_collection.insert_one(appointment_dict)
+
+    return {"message": "Appointment booked successfully"}
 
 @router.get("/appointments")
-async def get_appointments():
+async def list_appointments():
     appointments = appointments_collection.find()
-    return json.loads(json_util.dumps(appointments))
+    return json.loads(json_util.dumps(appointments))  # Convert BSON to JSON
 
-@router.get("/appointments/{appointment_id}")
-async def get_appointment(appointment_id: str):
+@router.patch("/appointments/{appointment_id}")
+async def edit_appointment(appointment_id: str, new_appointment_time: datetime):
     appointment = appointments_collection.find_one({"_id": ObjectId(appointment_id)})
     if appointment is None:
         raise HTTPException(status_code=404, detail="Appointment not found")
-    return json.loads(json_util.dumps(appointment))
 
-@router.post("/appointments")
-async def create_appointment(appointment: Appointment):
-    appointment_dict = appointment.dict()
-    appointment_dict['user_id'] = ObjectId(appointment_dict['user_id'])
-    appointment_dict['doctor_id'] = ObjectId(appointment_dict['doctor_id'])
-    result = appointments_collection.insert_one(appointment_dict)
-    return {"id": str(result.inserted_id)}
+    # Check if the new appointment time is available
+    existing_appointment = appointments_collection.find_one({
+        "doctor_id": appointment['doctor_id'],
+        "appointment_time": new_appointment_time
+    })
+    if existing_appointment is not None:
+        raise HTTPException(status_code=400, detail="Appointment time not available")
 
-@router.put("/appointments/{appointment_id}")
-async def update_appointment(appointment_id: str, appointment: Appointment):
-    appointment_dict = appointment.dict()
-    appointment_dict['user_id'] = ObjectId(appointment_dict['user_id'])
-    appointment_dict['doctor_id'] = ObjectId(appointment_dict['doctor_id'])
-    result = appointments_collection.update_one({"_id": ObjectId(appointment_id)}, {"$set": appointment_dict})
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Appointment not found")
-    return {"id": appointment_id}
+    result = appointments_collection.update_one(
+        {"_id": ObjectId(appointment_id)}, 
+        {"$set": {"appointment_time": new_appointment_time}}
+    )
+
+    return {"message": "Appointment updated successfully"}
 
 @router.delete("/appointments/{appointment_id}")
 async def delete_appointment(appointment_id: str):
     result = appointments_collection.delete_one({"_id": ObjectId(appointment_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Appointment not found")
-    return {"id": appointment_id}
 
-
-@router.post("/book_appointment")
-async def book_appointment(appointment: Appointment):
-    # Check if the user and doctor exist
-    user = users_collection.find_one({"_id": ObjectId(appointment.user_id)})
-    doctor = doctors_collection.find_one({"_id": ObjectId(appointment.doctor_id)})
-    if user is None or doctor is None:
-        raise HTTPException(status_code=400, detail="Invalid user or doctor ID")
-
-    # Check if the appointment time is available for the doctor
-    existing_appointment = appointments_collection.find_one({
-        "doctor_id": appointment.doctor_id,
-        "appointment_time": appointment.appointment_time
-    })
-    if existing_appointment is not None:
-        raise HTTPException(status_code=409, detail="The appointment time is not available")
-    
-    # If the doctor is not found, raise an HTTPException with status code 404 (Not Found)
-    if doctor is None:
-        raise HTTPException(status_code=404, detail="Doctor not found")
-
-    # Otherwise, create a new appointment object and insert it into MongoDB
-    appointment_dict = appointment.dict()
-    result = appointments_collection.insert_one(appointment_dict)
-
-    # Return the ID of the newly created appointment object
-    return {"id": str(result.inserted_id)}
-
-
-
+    return {"message": "Appointment deleted successfully"}
 
 @router.put("/appointments/{appointment_id}/accept")
-async def accept_appointment(appointment_id: str, db: MongoClient = Depends(get_database)):
-    appointments_collection = db["appointments"]
+async def accept_appointment(
+    appointment_id: str,
+):
     appointment = appointments_collection.find_one({"_id": ObjectId(appointment_id)})
     if appointment is None:
         raise HTTPException(status_code=404, detail="Appointment not found")
 
     if appointment["status"] != "pending":
-        raise HTTPException(status_code=400, detail="Appointment has already been processed")
+        raise HTTPException(status_code=400, detail="Invalid operation: appointment has already been processed")
 
-    chat_room_id = f"chat-{appointment_id}"
-    appointments_collection.update_one({"_id": ObjectId(appointment_id)}, {"$set": {"status": "accepted", "chat_room_id": chat_room_id}})
+    # Generate a chat room ID and save it to the appointment object
+    room_id = str(uuid.uuid4())
+    appointments_collection.update_one({"_id": ObjectId(appointment_id)}, {"$set": {"status": "accepted", "room_id": room_id}})
 
-    return {"message": "Appointment accepted and chat room created", "chat_room_id": chat_room_id}
+    # Create a new chat room for the appointment
+    chats_collection = get_database()["chats"]
+    chat = {"room_id": room_id, "user_id": appointment["user_id"], "doctor_id": appointment["doctor_id"], "messages": []}
+    chats_collection.insert_one(chat)
 
-
+    return {"message": "Appointment accepted successfully"}
 
 
 @router.put("/appointments/{appointment_id}/reject")
-async def reject_appointment(appointment_id: str):
+async def reject_appointment(
+    appointment_id: str,
+):
     appointment = appointments_collection.find_one({"_id": ObjectId(appointment_id)})
     if appointment is None:
         raise HTTPException(status_code=404, detail="Appointment not found")
 
     if appointment["status"] != "pending":
-        raise HTTPException(status_code=400, detail="Appointment has already been processed")
+        raise HTTPException(status_code=400, detail="Invalid operation: appointment has already been processed")
 
     appointments_collection.update_one({"_id": ObjectId(appointment_id)}, {"$set": {"status": "rejected"}})
 
     return {"message": "Appointment rejected successfully"}
+
+@router.get("/appointments/{doctor_id}")
+async def list_appointments_by_doctor(doctor_id: str):
+    doctor = doctors_collection.find_one({"_id": ObjectId(doctor_id)})
+    if doctor is None:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+
+    appointments = appointments_collection.find({"doctor_id": ObjectId(doctor_id)})
+    return json.loads(json_util.dumps(appointments))  # Convert BSON to JSON
