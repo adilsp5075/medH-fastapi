@@ -4,6 +4,7 @@ from bson import json_util, ObjectId
 from database import get_database
 from pydantic import BaseModel
 import json
+from bson.json_util import dumps
 from datetime import datetime
 from routers.doctors import get_current_doctor
 import uuid
@@ -18,6 +19,7 @@ doctors_collection = db["doctors"]
 appointments_collection = db["appointments"]
 
 class Appointment(BaseModel):
+    username: str
     user_id: str
     doctor_id: str
     appointment_time: datetime
@@ -123,8 +125,27 @@ async def reject_appointment(
 
     return {"message": "Appointment rejected successfully"}
 
+
+
 @router.get("/appointments/{doctor_id}")
 async def list_appointments_by_doctor(doctor_id: str):
+    doctor = doctors_collection.find_one({"_id": ObjectId(doctor_id)})
+    if doctor is None:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+
+    appointments = appointments_collection.find({"doctor_id": ObjectId(doctor_id)})
+    appointments = json.loads(dumps(appointments))  # Convert BSON to JSON
+    for appointment in appointments:
+        appointment["_id"] = str(appointment["_id"]["$oid"])
+        appointment["user_id"] = str(appointment["user_id"]["$oid"])
+        appointment["doctor_id"] = str(appointment["doctor_id"]["$oid"])
+        appointment["appointment_time"] = str(appointment["appointment_time"]["$date"])
+
+    return appointments
+
+
+@router.get("/appointments/by-doctor/{doctor_id}")
+async def get_appointments_by_doctor(doctor_id: str):
     doctor = doctors_collection.find_one({"_id": ObjectId(doctor_id)})
     if doctor is None:
         raise HTTPException(status_code=404, detail="Doctor not found")

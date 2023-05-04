@@ -103,13 +103,11 @@ async def login_user(user_login: UserLogin):
         data={"sub": str(user["_id"])}, expires_delta=access_token_expires
     )
 
-    # # Send login confirmation email to user
-    # receiver_email = user["email"]
-    # subject = "Login Confirmation"
-    # body = f"Hi {user['name']},\n\nYou have successfully logged in to our Medical App at {datetime.utcnow()}."
-    # send_email(receiver_email, subject, body)
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    # Return all user details
+    user["_id"] = str(user["_id"])  # Convert ObjectId to string
+    return {"access_token": access_token, "token_type": "bearer", "user": user}
+
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
@@ -154,5 +152,4 @@ async def delete_user(
     # send_email(receiver_email, subject, body)
 
     return {"message": "User deleted successfully"}
-
 

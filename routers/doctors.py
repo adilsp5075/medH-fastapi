@@ -31,7 +31,7 @@ class Doctor(BaseModel):
     email: str
     password: str
     speciality: str
-    hospital: str
+    doc_id : str
     years_of_experience: int
 
 class DoctorLogin(BaseModel):
@@ -51,7 +51,12 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 @router.get("/doctors")
 async def get_doctors():
     doctors = doctors_collection.find()
-    return json.loads(json_util.dumps(doctors))  # Convert BSON to JSON
+    doctors = json.loads(json_util.dumps(doctors))
+    for doctor in doctors:
+        doctor["_id"] = str(doctor["_id"]["$oid"])  # Remove curly braces from ObjectId string
+    return doctors
+
+
 
 @router.get("/doctors/{doctor_id}")
 async def get_doctor(doctor_id: str):
@@ -78,7 +83,7 @@ async def register_doctor(doctor: Doctor):
 
     return {"access_token": access_token, "token_type": "bearer"}
 
-@router.post("/login/doctor", response_model=Dict[str, str])
+@router.post("/login/doctor")
 async def login_doctor(doctor_login: DoctorLogin):
     # Hash the password before querying the database
     hashed_password = hashlib.sha256(doctor_login.password.encode()).hexdigest()
@@ -98,7 +103,10 @@ async def login_doctor(doctor_login: DoctorLogin):
         data={"sub": str(doctor["_id"])}, expires_delta=access_token_expires
     )
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    # Return all doctor details
+    doctor["_id"] = str(doctor["_id"])  # Convert ObjectId to string
+    return {"access_token": access_token, "token_type": "bearer", "doctor": doctor}
+
 
 
 
