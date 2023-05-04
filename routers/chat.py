@@ -79,7 +79,7 @@ async def get_messages(room_id: str, db: MongoClient = Depends(get_database)):
 
     pipeline = [
         {"$match": {"room_id": room_id}},
-        {"$unwind": "$messages"},
+        {"$unwind": {"path": "$messages", "preserveNullAndEmptyArrays": True}},
         {"$lookup": {
             "from": "users",
             "localField": "messages.sender_id",
@@ -119,8 +119,12 @@ async def get_messages(room_id: str, db: MongoClient = Depends(get_database)):
             "sender_name": sender_name
         }
         formatted_messages.append(formatted_message)
-    
+
+    if not formatted_messages:
+        return {"message": "No messages yet"}
+
     return {"messages": formatted_messages}
+
 
 
 

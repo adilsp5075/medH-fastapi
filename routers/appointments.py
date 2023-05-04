@@ -8,6 +8,7 @@ from bson.json_util import dumps
 from datetime import datetime
 from routers.doctors import get_current_doctor
 import uuid
+from bson.json_util import default
 
 
 router = APIRouter()
@@ -20,11 +21,14 @@ appointments_collection = db["appointments"]
 
 class Appointment(BaseModel):
     username: str
+    doctorname: str
     user_id: str
     doctor_id: str
     appointment_time: datetime
     notes: str
     status: str = "pending"
+
+
 
 @router.post("/appointments")
 async def book_appointment(appointment: Appointment):
@@ -59,7 +63,11 @@ async def list_appointments():
     return json.loads(json_util.dumps(appointments))  # Convert BSON to JSON
 
 @router.patch("/appointments/{appointment_id}")
-async def edit_appointment(appointment_id: str, new_appointment_time: datetime):
+async def edit_appointment(payload: dict):
+    appointment_id = payload["appointment_id"]
+    new_appointment_time = payload["new_appointment_time"]
+    new_notes = payload["new_notes"]
+    
     appointment = appointments_collection.find_one({"_id": ObjectId(appointment_id)})
     if appointment is None:
         raise HTTPException(status_code=404, detail="Appointment not found")
@@ -74,10 +82,11 @@ async def edit_appointment(appointment_id: str, new_appointment_time: datetime):
 
     result = appointments_collection.update_one(
         {"_id": ObjectId(appointment_id)}, 
-        {"$set": {"appointment_time": new_appointment_time}}
+        {"$set": {"appointment_time": new_appointment_time, "notes": new_notes}}
     )
 
     return {"message": "Appointment updated successfully"}
+
 
 @router.delete("/appointments/{appointment_id}")
 async def delete_appointment(appointment_id: str):
@@ -139,7 +148,8 @@ async def list_appointments_by_doctor(doctor_id: str):
         appointment["_id"] = str(appointment["_id"]["$oid"])
         appointment["user_id"] = str(appointment["user_id"]["$oid"])
         appointment["doctor_id"] = str(appointment["doctor_id"]["$oid"])
-        appointment["appointment_time"] = str(appointment["appointment_time"]["$date"])
+        if isinstance(appointment["appointment_time"], dict) and "$date" in appointment["appointment_time"]:
+            appointment["appointment_time"] = str(appointment["appointment_time"]["$date"])
 
     return appointments
 
@@ -152,3 +162,42 @@ async def get_appointments_by_doctor(doctor_id: str):
 
     appointments = appointments_collection.find({"doctor_id": ObjectId(doctor_id)})
     return json.loads(json_util.dumps(appointments))  # Convert BSON to JSON
+
+
+@router.get("/appointments/by-user/{user_id}")
+async def get_appointments_by_user(user_id: str):
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    appointments = appointments_collection.find({"user_id": ObjectId(user_id)})
+    appointments = json.loads(json_util.dumps(appointments))  # Convert BSON to JSON
+    for appointment in appointments:
+            appointment["_id"] = str(appointment["_id"]["$oid"])
+            appointment["user_id"] = str(appointment["user_id"]["$oid"])
+            appointment["doctor_id"] = str(appointment["doctor_id"]["$oid"])
+            if isinstance(appointment["appointment_time"], dict) and "$date" in appointment["appointment_time"]:
+                appointment["appointment_time"] = str(appointment["appointment_time"]["$date"])
+
+    return appointments
+
+
+@router.get("/appointments/by-status-user/{user_id}")
+async def get_appointments_by_user(user_id: str):
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    appointments = appointments_collection.find({
+        "user_id": ObjectId(user_id),
+        "status": "accepted"
+    })
+    appointments = json.loads(json_util.dumps(appointments))  # Convert BSON to JSON
+    for appointment in appointments:
+        appointment["_id"] = str(appointment["_id"]["$oid"])
+        appointment["user_id"] = str(appointment["user_id"]["$oid"])
+        appointment["doctor_id"] = str(appointment["doctor_id"]["$oid"])
+        if isinstance(appointment["appointment_time"], dict) and "$date" in appointment["appointment_time"]:
+            appointment["appointment_time"] = str(appointment["appointment_time"]["$date"])
+
+    return appointments
