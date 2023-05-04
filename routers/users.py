@@ -75,13 +75,22 @@ async def register_user(user: User):
         data={"sub": str(result.inserted_id)}, expires_delta=access_token_expires
     )
 
-    # # Send welcome email to user
-    # receiver_email = user.email
-    # subject = "Welcome to our Medical App"
-    # body = f"Hi {user.name},\n\nThank you for registering with our Medical App!"
-    # send_email(receiver_email, subject, body)
+    # Retrieve the user object from MongoDB
+    user_data = users_collection.find_one({"_id": result.inserted_id})
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    # Create a dictionary of user details to return
+    user_details = {
+        "id": str(user_data["_id"]),
+        "name": user_data["name"],
+        "username": user_data["username"],
+        "email": user_data["email"],
+        "gender": user_data["gender"],
+        "age": user_data["age"],
+    }
+
+    return {"access_token": access_token, "token_type": "bearer", "user": user_details}
+
+
 
 @router.post("/login/user")
 async def login_user(user_login: UserLogin):
