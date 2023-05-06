@@ -201,3 +201,24 @@ async def get_appointments_by_user(user_id: str):
             appointment["appointment_time"] = str(appointment["appointment_time"]["$date"])
 
     return appointments
+
+
+@router.get("/appointments/by-status-doctor/{doctor_id}")
+async def get_appointments_by_doctor_status(doctor_id: str):
+    doctor = doctors_collection.find_one({"_id": ObjectId(doctor_id)})
+    if doctor is None:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+
+    appointments = appointments_collection.find({
+        "doctor_id": ObjectId(doctor_id),
+        "status": "accepted"
+    })
+    appointments = json.loads(json_util.dumps(appointments))  # Convert BSON to JSON
+    for appointment in appointments:
+        appointment["_id"] = str(appointment["_id"]["$oid"])
+        appointment["user_id"] = str(appointment["user_id"]["$oid"])
+        appointment["doctor_id"] = str(appointment["doctor_id"]["$oid"])
+        if isinstance(appointment["appointment_time"], dict) and "$date" in appointment["appointment_time"]:
+            appointment["appointment_time"] = str(appointment["appointment_time"]["$date"])
+
+    return appointments
