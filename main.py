@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import users, doctors, chat, chatbot, appointments,medical_data
+from routers import users, doctors, chat, chatbot, appointments,medical_data,notification
 
 app = FastAPI()
 
@@ -11,6 +11,7 @@ app.include_router(appointments.router, prefix="/api",tags=["appointments"])
 app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(chatbot.router, prefix="/api",tags=["chatbot"])  
 app.include_router(medical_data.router, prefix="/api", tags=["medical_data"])
+app.include_router(notification.router, prefix="/api", tags=["notification"])
 
 # Define the allowed origins for CORS
 # origins = [
