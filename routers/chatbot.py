@@ -64,8 +64,8 @@ def generate_prediction(symptoms):
     prediction = response.choices[0].text.strip()
     return prediction
 
-@router.post("/gpt-prediction")
-async def gpt_prediction(disease_prediction: DiseasePrediction):
+@router.post("/disease-prediction")
+async def disease_prediction(disease_prediction: DiseasePrediction):
     symptoms = disease_prediction.symptoms
     prediction = generate_prediction(symptoms)
     
