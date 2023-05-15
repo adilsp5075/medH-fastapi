@@ -32,6 +32,7 @@ class BotResponse(BaseModel):
 
 class DiseasePrediction(BaseModel):
     symptoms: list
+    location: dict
 
 PROMPT = """Given the following symptoms, predict the most likely disease.
     
@@ -69,12 +70,25 @@ async def disease_prediction(disease_prediction: DiseasePrediction):
     symptoms = disease_prediction.symptoms
     prediction = generate_prediction(symptoms)
     
-    # Save prediction in MongoDB
-    record = {"symptoms": symptoms, "prediction": prediction}
+    # Save prediction and location in MongoDB
+    record = {
+        "symptoms": symptoms,
+        "prediction": prediction,
+        "location": disease_prediction.location
+    }
     result = collection.insert_one(record)
     record_id = str(result.inserted_id)
     
-    return {"disease_prediction": prediction, "record_id": record_id}
+     # Calculate count of disease predictions
+    pipeline = [
+        {"$group": {"_id": "$prediction", "count": {"$sum": 1}}}
+    ]
+    count_results = collection.aggregate(pipeline)
+    disease_counts = {result["_id"]: result["count"] for result in count_results}
+    
+    return {"disease_prediction": prediction, "record_id": record_id, "disease_counts": disease_counts}
+
+
 
 @router.post("/chatbot/message", response_model=BotResponse)
 async def chatbot_message(user_message: UserMessage):
