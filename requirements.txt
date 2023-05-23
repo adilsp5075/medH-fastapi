@@ -11,3 +11,4 @@ pydantic
 python-multipart
 python-dotenv
 openai
+geopy
