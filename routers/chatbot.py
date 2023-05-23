@@ -7,15 +7,15 @@ from dotenv import load_dotenv
 import os
 import openai
 from database import get_database
-# import pymongo
+import pymongo
 
-# from scipy.stats import mode
-# import joblib
+from scipy.stats import mode
+import joblib
 
 router = APIRouter()
 
 # Load the saved models and data dictionary
-# final_rf_model, final_nb_model, final_svm_model, data_dict = joblib.load("prediction/prediction.pkl")
+final_rf_model, final_nb_model, final_svm_model, data_dict = joblib.load("prediction/prediction.pkl")
 
 load_dotenv()
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -103,28 +103,28 @@ def process_message(user_input: str) -> str:
 
     return "I'm not sure how to respond to that. Please try something else."
 
-# # Define the predict endpoint
-# @router.post("/predict")
-# async def predict_disease(symptoms: str):
-#     # Split the symptoms input by commas and clean up any whitespace
-#     symptoms = [symptom.strip() for symptom in symptoms.split(",")]
-#     # Check if there are at least three symptoms
-#     if len(symptoms) < 3:
-#         return {"error": "Please enter at least three symptoms"}
-#     # Create a binary input vector for the input symptoms
-#     input_data = [0] * len(data_dict["symptom_index"])
-#     for symptom in symptoms:
-#         if symptom.capitalize() in data_dict["symptom_index"]:
-#             index = data_dict["symptom_index"][symptom.capitalize()]
-#             input_data[index] = 1
-#     # Make predictions using the saved models and take the mode of the predictions
-#     rf_prediction = data_dict["predictions_classes"][final_rf_model.predict([input_data])[0]]
-#     nb_prediction = data_dict["predictions_classes"][final_nb_model.predict([input_data])[0]]
-#     svm_prediction = data_dict["predictions_classes"][final_svm_model.predict([input_data])[0]]
-#     final_prediction = mode([rf_prediction, nb_prediction, svm_prediction])[0][0]
-#     # Save prediction in MongoDB
-#     record = {"symptoms": symptoms, "disease": final_prediction}
-#     result = collection.insert_one(record)
-#     record_id = str(result.inserted_id)
-#     # Return the final prediction
-#     return {"disease": final_prediction, "record_id": record_id}
+# Define the predict endpoint
+@router.post("/predict")
+async def predict_disease(symptoms: str):
+    # Split the symptoms input by commas and clean up any whitespace
+    symptoms = [symptom.strip() for symptom in symptoms.split(",")]
+    # Check if there are at least three symptoms
+    if len(symptoms) < 3:
+        return {"error": "Please enter at least three symptoms"}
+    # Create a binary input vector for the input symptoms
+    input_data = [0] * len(data_dict["symptom_index"])
+    for symptom in symptoms:
+        if symptom.capitalize() in data_dict["symptom_index"]:
+            index = data_dict["symptom_index"][symptom.capitalize()]
+            input_data[index] = 1
+    # Make predictions using the saved models and take the mode of the predictions
+    rf_prediction = data_dict["predictions_classes"][final_rf_model.predict([input_data])[0]]
+    nb_prediction = data_dict["predictions_classes"][final_nb_model.predict([input_data])[0]]
+    svm_prediction = data_dict["predictions_classes"][final_svm_model.predict([input_data])[0]]
+    final_prediction = mode([rf_prediction, nb_prediction, svm_prediction])[0][0]
+    # Save prediction in MongoDB
+    record = {"symptoms": symptoms, "disease": final_prediction}
+    result = collection.insert_one(record)
+    record_id = str(result.inserted_id)
+    # Return the final prediction
+    return {"disease": final_prediction, "record_id": record_id}

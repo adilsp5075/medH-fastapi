@@ -11,6 +11,8 @@ import json
 import hashlib
 from datetime import datetime, timedelta
 import jwt
+import os
+
 
 # Secret key for JWT
 SECRET_KEY = "justformedicalpurposeapplication"
@@ -66,8 +68,19 @@ async def get_doctor(doctor_id: str):
     return json.loads(json_util.dumps(doctor))
 
 
+# Load valid doctor IDs from the JSON file
+with open(os.path.join('utils', 'doctor_id.json')) as f:
+    valid_doctor_ids = json.load(f)['doctors']
+
+# Convert list of dictionaries to list of ids
+valid_doctor_ids = [doc['id'] for doc in valid_doctor_ids]
+
 @router.post("/register/doctor")
 async def register_doctor(doctor: Doctor):
+    # Check if the doctor ID is valid
+    if doctor.doc_id not in valid_doctor_ids:
+        raise HTTPException(status_code=403, detail="Invalid doctor ID")
+
     # Hash the password before saving it to the database
     hashed_password = hashlib.sha256(doctor.password.encode()).hexdigest()
 
