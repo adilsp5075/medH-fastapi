@@ -55,17 +55,6 @@ class LiverModel(BaseModel):
     Albumin : float
     Albumin_and_Globulin_Ratio: float
 
-class KidneyModel(BaseModel):
-    name : str
-    gender: str
-    age: int
-    bp : float
-    sg : float
-    al : float
-    su : float
-    rbc : str
-    pc : str
-    pcc: str
 
 
 
@@ -105,6 +94,12 @@ async def predict_diabetes(data: DiabetesModel):
         data.diabetes_pedigree_function,
         data.age
     ]])
+    # Store the prediction and data in MongoDB
+    report = {
+        "prediction": int(prediction[0]),
+        "data": data.dict()
+    }
+    reports_collection.insert_one(report)
     return {"prediction": int(prediction[0])}
 
 @router.post('/predict_heart')
@@ -120,6 +115,12 @@ async def predict_heart_disease(data: HeartModel):
         data.thalach,
         data.exang
     ]])
+    # Store the prediction and data in MongoDB
+    report = {
+        "prediction": int(prediction[0]),
+        "data": data.dict()
+    }
+    reports_collection.insert_one(report)
     return {"prediction" : int(prediction[0])}
 
 @router.post('/predict_liver')
@@ -134,5 +135,11 @@ async def predict_liver_disease(data: LiverModel):
         data.Albumin,
         data.Albumin_and_Globulin_Ratio
     ]])
+    # Store the prediction and data in MongoDB
+    report = {
+        "prediction": int(prediction[0]),
+        "data": data.dict()
+    }
+    reports_collection.insert_one(report)
     return{"prediction": int(prediction[0])}
 

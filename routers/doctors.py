@@ -81,6 +81,11 @@ async def register_doctor(doctor: Doctor):
     if doctor.doc_id not in valid_doctor_ids:
         raise HTTPException(status_code=403, detail="Invalid doctor ID")
 
+    # Check if the username is already taken
+    existing_doctor = doctors_collection.find_one({"username": doctor.username})
+    if existing_doctor:
+        raise HTTPException(status_code=409, detail="Username already taken")
+
     # Hash the password before saving it to the database
     hashed_password = hashlib.sha256(doctor.password.encode()).hexdigest()
 
@@ -95,6 +100,7 @@ async def register_doctor(doctor: Doctor):
     )
 
     return {"access_token": access_token, "token_type": "bearer"}
+
 
 @router.post("/login/doctor")
 async def login_doctor(doctor_login: DoctorLogin):

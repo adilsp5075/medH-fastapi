@@ -62,6 +62,11 @@ async def get_user(user_id: str):
 
 @router.post("/register/user")
 async def register_user(user: User):
+    # Check if the username is already taken
+    existing_user = users_collection.find_one({"username": user.username})
+    if existing_user:
+        return {"error": "Username already taken"}
+
     # Hash the password before saving it to the database
     hashed_password = hashlib.sha256(user.password.encode()).hexdigest()
 
@@ -89,6 +94,7 @@ async def register_user(user: User):
     }
 
     return {"access_token": access_token, "token_type": "bearer", "user": user_details}
+
 
 
 

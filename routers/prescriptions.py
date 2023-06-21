@@ -8,6 +8,7 @@ from bson import json_util, ObjectId
 from database import get_database
 from pydantic import BaseModel
 from typing import List
+from datetime import datetime
 import json
 
 # Connect to MongoDB
@@ -24,7 +25,9 @@ class Prescription(BaseModel):
     symptoms: List[str]
     prescription: str
     disease_name: str
-    status: bool 
+    status: bool  
+    date: datetime  
+    time: datetime 
 
 class PrescriptionPDF(FPDF):
     def header(self):
@@ -38,6 +41,17 @@ class PrescriptionPDF(FPDF):
         self.cell(0, 10, f'Disease: {prescription["disease_name"]}', 0, 1)
         self.cell(0, 10, f'Symptoms: {", ".join(prescription["symptoms"])}', 0, 1)
         self.cell(0, 10, f'Prescription: {prescription["prescription"]}', 0, 1)
+
+         # Add date and time to the PDF
+        date = prescription["date"].strftime("%Y-%m-%d")
+        time = prescription["time"].strftime("%H:%M:%S")
+        self.cell(0, 10, f'Date: {date}', 0, 1)
+        self.cell(0, 10, f'Time: {time}', 0, 1)
+
+        # Add creation date and time to the PDF
+        # created_at = prescription["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+        # self.cell(0, 10, f'Prescription created at: {created_at}', 0, 1)
+
 
 
 @router.get("/download_prescription/{prescription_id}")
@@ -60,6 +74,9 @@ async def download_prescription(prescription_id: str):
 
 @router.post("/prescriptions")
 async def add_prescription(prescription: Prescription):
+    # Add the current time as the creation time
+    #prescription.created_at = datetime.now()
+
     # Insert the prescription object into MongoDB
     prescription_dict = prescription.dict()
 

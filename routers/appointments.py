@@ -29,7 +29,6 @@ class Appointment(BaseModel):
     status: str = "pending"
 
 
-
 @router.post("/appointments")
 async def book_appointment(appointment: Appointment):
     # Check if the user and doctor exist
@@ -49,6 +48,14 @@ async def book_appointment(appointment: Appointment):
     if existing_appointment is not None:
         raise HTTPException(status_code=400, detail="Appointment time not available")
 
+    # Check if the doctor has any other appointments in the given time
+    conflicting_appointments_count = appointments_collection.count_documents({
+        "doctor_id": ObjectId(appointment.doctor_id),
+        "appointment_time": appointment.appointment_time
+    })
+    if conflicting_appointments_count > 0:
+        raise HTTPException(status_code=400, detail="Doctor has other appointments in the given time")
+
     # Book the appointment
     appointment_dict = appointment.dict()
     appointment_dict['doctor_id'] = ObjectId(appointment.doctor_id)
@@ -56,6 +63,8 @@ async def book_appointment(appointment: Appointment):
     result = appointments_collection.insert_one(appointment_dict)
 
     return {"message": "Appointment booked successfully"}
+
+
 
 @router.get("/appointments")
 async def list_appointments():
