@@ -1,11 +1,19 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 import pickle
+from database import get_database
+
+# Connect to MongoDB
+db = get_database()
+reports_collection = db["life_style_disease"]
 
 router = APIRouter()
 
 # Define a Pydantic model for each input format
 class CancerModel(BaseModel):
+    name : str
+    gender: str
+    age: int
     radius_mean: float
     area_mean: float
     perimeter_mean: float
@@ -13,6 +21,9 @@ class CancerModel(BaseModel):
     concave_points_mean: float
 
 class DiabetesModel(BaseModel):
+    name : str
+    gender: str
+    age: int
     pregnancies: int
     glucose: float
     blood_pressure: float
@@ -21,6 +32,9 @@ class DiabetesModel(BaseModel):
     age: int
 
 class HeartModel(BaseModel):
+    name : str
+    gender: str
+    age: int
     cp: int
     trestbps: int
     chol : int
@@ -30,6 +44,9 @@ class HeartModel(BaseModel):
     exang : int
 
 class LiverModel(BaseModel):
+    name : str
+    gender: str
+    age: int
     Total_Bilirubin: float
     Direct_Bilirubin : float 
     Alkaline_Phosphotase: int
@@ -39,6 +56,9 @@ class LiverModel(BaseModel):
     Albumin_and_Globulin_Ratio: float
 
 class KidneyModel(BaseModel):
+    name : str
+    gender: str
+    age: int
     bp : float
     sg : float
     al : float
@@ -48,8 +68,6 @@ class KidneyModel(BaseModel):
     pcc: str
 
 
-
-# Similarly, define models for Heart, Liver and Kidney
 
 def load_model(filename):
     with open(filename, 'rb') as file:
@@ -66,6 +84,14 @@ async def predict_cancer(data: CancerModel):
         data.concavity_mean,
         data.concave_points_mean
     ]])
+
+    # Store the prediction and data in MongoDB
+    report = {
+        "prediction": int(prediction[0]),
+        "data": data.dict()
+    }
+    reports_collection.insert_one(report)
+
     return {"prediction": int(prediction[0])}
 
 @router.post('/predict_diabetes')

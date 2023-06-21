@@ -11,7 +11,7 @@ import os
 
 # Connect to MongoDB
 db = get_database()
-reports_collection = db["image_processing"]  # changed collection name
+reports_collection = db["image_processing"]
 
 router = APIRouter()
 
